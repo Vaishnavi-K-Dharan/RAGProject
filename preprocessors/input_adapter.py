@@ -1,23 +1,18 @@
-import streamlit as st
-from transformers import pipeline, CLIPProcessor, CLIPModel
 from PIL import Image
 import pandas as pd
-import pytesseract
+from sentence_transformers import SentenceTransformer
+from preprocessors.query_interpreter import QueryInterpreter
 
-def detect_modality(input_data):
-    if isinstance(input_data, str):
-        return "text"
-    elif isinstance(input_data, Image.Image):
-        return "image"
-    elif isinstance(input_data, (pd.DataFrame, list)):
-        return "tabular"
-    return "unknown"
-
-def preprocess_image(img):
-    ocr_pipe = pipeline("document-question-answering", model="impira/layoutlm-document-qa")
-    text = pytesseract.image_to_string(img)
-    clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
-    processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
-    embedding = processor(images=img, return_tensors="pt")
-    return {"text": text, "embedding": embedding}
-
+class InputAdapter:
+    def __init__(self):
+        self.sentence_model = SentenceTransformer('all-MiniLM-L6-v2')
+        self.interpreter = QueryInterpreter()
+    
+    def preprocess(self, input_data):
+        if isinstance(input_data, str):
+            return {"type": "text", "data": input_data}
+        elif isinstance(input_data, Image.Image):
+            return {"type": "image", "data": "Image detected"}
+        elif isinstance(input_data, pd.DataFrame):
+            return {"type": "table", "data": input_data.to_json()}
+        return {"type": "unknown", "data": str(input_data)}
